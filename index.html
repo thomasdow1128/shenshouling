@@ -247,6 +247,31 @@ table.score td:first-child,table.score th:first-child{text-align:left;font-famil
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+/* multiplayer */
+.opps.many .opp{padding:5px 3px}
+.opps.many .opp .nm{font-size:14px}
+.opps.many .opp .st,.opps.many .opp .sc{font-size:11px}
+.opp.off{opacity:.62}
+.mp-field{display:flex;flex-direction:column;gap:6px}
+.mp-field label{font-size:13px;color:var(--muted)}
+.mp-input{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:17px;padding:0 14px;width:100%;box-sizing:border-box}
+.mp-input:focus{outline:2px solid var(--gold);outline-offset:1px}
+.mp-code-input{letter-spacing:.3em;text-transform:uppercase;font-weight:700;text-align:center}
+.mp-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:4px 0}
+.mp-or::before,.mp-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.mp-err{color:var(--bad);font-size:13px;min-height:1.2em;margin:0}
+.roomcode{font-family:var(--font-ui);font-size:40px;font-weight:700;letter-spacing:.24em;padding-left:.24em;color:var(--gold-hi);text-align:center;margin:6px 0 4px}
+.sheet .members{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sheet .members li{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;max-width:none;color:var(--text)}
+.sheet .members li small{margin-left:auto;color:var(--muted);font-size:12px}
+.sheet .members li.ai{color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:52px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:22px}
+.stepper button:disabled{opacity:.35;cursor:default}
+.stepper b{min-width:2ch;text-align:center;font-size:20px;font-variant-numeric:tabular-nums}
+.spin{width:28px;height:28px;margin:14px auto;border-radius:50%;border:3px solid var(--line);border-top-color:var(--gold);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 </style>
 </head>
 <body>
@@ -302,8 +327,10 @@ const SP = {
   rabbit:{name:'玉兔', title:'隱月', count:3, rule:'必輸，任何時候都能出。整墩沒有能比大小的牌時，最先出的玉兔吃墩。'},
 };
 const ESCAPES = new Set(['rabbit','taotie','hundun','hetu']);
-const AI_NAMES = ['崑崙','蓬萊','青丘','瀛洲','方丈'];
+const AI_NAMES = ['崑崙','蓬萊','青丘','瀛洲','方丈','岱輿','員嶠','方壺'];
 const ROUNDS = 10;
+// 63 cards minus the 天命 flip: 7 seats → 8 rounds, 8 seats → 7 rounds
+const roundsFor = n => Math.min(ROUNDS, Math.floor(62 / n));
 
 let settings = {opp:3, speed:1.4};
 try { const s = JSON.parse(localStorage.getItem('shenshouling-settings') || 'null'); if (s && typeof s === 'object') settings = Object.assign(settings, s); } catch (e) {}
@@ -403,17 +430,22 @@ let tapResolve = null;
 let lastEnterId = null;
 
 function newGame(){
-  const n = settings.opp + 1;
+  if (NET) { if (NET.role === 'host') mpStart(); return; }
   const names = shuffle(AI_NAMES.slice()).slice(0, settings.opp);
+  makeGame([{name:'你', human:true}, ...names.map(nm => ({name:nm, human:false}))], false);
+}
+// players: seat 0 is always the person at this screen. remote:true = a human on another device (host only)
+function makeGame(players, mp){
+  const n = players.length;
   G = {
-    n, round:0, token:{}, phase:'idle',
-    players:[{name:'你', human:true}, ...names.map(nm => ({name:nm, human:false}))],
+    n, rounds: roundsFor(n), mp: !!mp, round:0, token:{}, phase:'idle',
+    players,
     startSeat: Math.floor(Math.random() * n),
     trump:null, trumpCard:null, trumpNote:'', leader:0, trick:[], turn:-1, tricksDone:0,
     result:null, msg:'', log:[],
   };
   G.players.forEach(p => Object.assign(p, {hand:[], bid:null, pendingBid:null, won:0, captured:[], score:0, hist:[]}));
-  selectedId = null; humanResolve = null; tapResolve = null;
+  selectedId = null; humanResolve = null; tapResolve = null; remoteResolve = null;
   closeSheet();
   resetTutUI();
   startRound();
@@ -431,7 +463,7 @@ function startRound(){
   if (r > 1) G.startSeat = (G.startSeat + 1) % G.n;
   G.leader = G.startSeat; G.trick = []; G.turn = -1; G.tricksDone = 0; G.result = null;
   G.phase = 'bid';
-  G.players.forEach(p => { if (!p.human) p.pendingBid = aiBid(p); });
+  G.players.forEach(p => { p.pendingBid = (!p.human && !p.remote) ? aiBid(p) : null; });
   G.msg = `每人 ${r} 張牌。天命${G.trumpNote}。看完手牌，預測你會吃幾墩。`;
   log(`發牌，天命${G.trumpNote}`);
   selectedId = null;
@@ -447,8 +479,20 @@ function humanBid(b){
     r && r();
     return;
   }
+  if (G.players[0].bid !== null) return;
+  if (G.mp && NET && NET.role === 'client') {
+    safeSend(NET.conn, {t:'bid', b});
+    G.players[0].bid = b; render();
+    return;
+  }
   G.players[0].bid = b;
-  G.players.forEach(p => { if (!p.human) p.bid = p.pendingBid; });
+  maybeRevealBids();
+}
+// bids are simultaneous: reveal once every person (local + remote) has bid
+function maybeRevealBids(){
+  if (G.phase !== 'bid') return;
+  if (G.players.some(p => (p.human || p.remote) && p.bid === null)) { render(); return; }
+  G.players.forEach(p => { if (!p.human && !p.remote && p.bid === null) p.bid = p.pendingBid; });
   G.phase = 'play';
   const bids = G.players.map(p => `${p.name} ${p.bid}`).join('、');
   G.msg = `下注公開：${bids}。由 ${G.players[G.leader].name} 先出。`;
@@ -475,6 +519,8 @@ async function playLoop(tok){
       G.turn = seat; render();
       if (G.players[seat].human) {
         await new Promise(res => { humanResolve = res; });
+      } else if (G.players[seat].remote) {
+        await new Promise(res => { remoteResolve = {seat, res}; });
       } else {
         await sleep(i === 0 ? 650 : 750);
         if (G.token !== tok) return;
@@ -489,7 +535,7 @@ async function playLoop(tok){
     if (G.token !== tok) return;
     finishTrick();
     render();
-    await waitTap(2100);
+    await (G.mp ? sleep(2400) : waitTap(2100));
     if (G.token !== tok) return;
   }
   if (G.token !== tok) return;
@@ -566,8 +612,8 @@ function scoreRound(){
     p.score += total;
     p.hist.push({bid:p.bid, won:p.won, base, bonus:b.bonus, notes:b.notes, total, hit});
   });
-  G.phase = r >= ROUNDS ? 'over' : 'roundEnd';
-  G.msg = r >= ROUNDS ? '十局結束。' : `第 ${r} 局結束。`;
+  G.phase = r >= G.rounds ? 'over' : 'roundEnd';
+  G.msg = r >= G.rounds ? `${G.rounds} 局結束。` : `第 ${r} 局結束。`;
   render();
   openRoundSheet();
 }
@@ -688,7 +734,7 @@ function flashChip(){
 
 function render(){
   if (!G) return;
-  $('.rd').innerHTML = G.tut ? '<b>新手</b>教學' : `第 <b id="rd">${G.round}</b> / 10 局`;
+  $('.rd').innerHTML = G.tut ? '<b>新手</b>教學' : `第 <b id="rd">${G.round}</b> / ${G.rounds || ROUNDS} 局`;
   // trump chip
   const chip = $('#trumpChip');
   const chaosNow = G.trick.length && chaosIn(G.trick) && G.phase !== 'bid';
@@ -707,6 +753,7 @@ function render(){
   renderHand();
   renderActions();
   applyTut();
+  if (NET && NET.role === 'host' && G.mp) hostBroadcast();
 }
 function needChip(p){
   if (p.bid === null) return '';
@@ -717,13 +764,15 @@ function needChip(p){
 }
 function renderOpps(){
   const el = $('#opps');
-  el.style.setProperty('--oc', G.n - 1);
+  const oc = G.n - 1;
+  el.style.setProperty('--oc', oc <= 5 ? oc : Math.ceil(oc / 2));
+  el.classList.toggle('many', oc > 5);
   el.innerHTML = G.players.slice(1).map((p, k) => {
     const seat = k + 1;
-    const bidTxt = G.phase === 'bid' ? '?' : (p.bid === null ? '—' : p.bid);
-    return `<div class="opp${G.turn === seat ? ' turn' : ''}">
+    const bidTxt = G.phase === 'bid' ? (G.mp && (p.bid !== null || p.bidDone || p.pendingBid != null) ? '✓' : '?') : (p.bid === null ? '—' : p.bid);
+    return `<div class="opp${G.turn === seat ? ' turn' : ''}${p.offline ? ' off' : ''}">
       ${G.phase !== 'bid' && G.leader === seat && G.trick.length < G.n && G.phase === 'play' ? '<span class="lead">先</span>' : ''}
-      <span class="cnt">${p.hand.length}張</span>
+      <span class="cnt">${p.offline ? '離線' : p.hand.length + '張'}</span>
       <div class="nm">${esc(p.name)}</div>
       <div class="st">注 <b>${bidTxt}</b> · 得 <b>${p.won}</b></div>
       <div class="sc">${p.score} 分</div>
@@ -749,8 +798,8 @@ function renderTable(){
 
   // slots
   const slotsEl = $('#slots');
-  const sw = G.n >= 5 ? 58 : 64;
-  slotsEl.style.setProperty('--cols', G.n <= 4 ? G.n : 3);
+  const sw = G.n >= 7 ? 54 : G.n >= 5 ? 58 : 64;
+  slotsEl.style.setProperty('--cols', G.n <= 4 ? G.n : G.n <= 6 ? 3 : 4);
   slotsEl.style.setProperty('--sw', sw + 'px');
   let live = null;
   if (G.trick.length) live = G.phase === 'trickEnd' && G.result ? G.result : resolve(G.trick, G.trump);
@@ -844,6 +893,11 @@ function renderActions(){
   const p = G.players[0];
   if (G.phase === 'bid') {
     let btns = '';
+    if (G.mp && p.bid !== null) {
+      const w = waitingBidders();
+      el.innerHTML = `<div class="status">你下注 ${p.bid}。${w.length ? `等待 ${w.map(esc).join('、')} 下注…` : '下注即將公開…'}</div>`;
+      return;
+    }
     for (let i = 0; i <= G.round; i++) btns += `<button type="button" data-bid="${i}">${i}</button>`;
     el.innerHTML = `<div class="bidbox"><div class="q">預測你這局會吃幾墩？</div></div><div class="bidgrid">${btns}</div>`;
     return;
@@ -858,6 +912,10 @@ function renderActions(){
     el.innerHTML = '<div class="status">看上方的說明，按「下一步」繼續。</div>';
     return;
   }
+  if (G.phase === 'trickEnd' && G.mp) {
+    el.innerHTML = '<div class="status">下一墩即將開始…</div>';
+    return;
+  }
   if (G.phase === 'trickEnd') {
     el.innerHTML = `<button type="button" class="btn ghost" data-act="continue">繼續</button>`;
     return;
@@ -866,16 +924,23 @@ function renderActions(){
     el.innerHTML = `<button type="button" class="btn" data-act="roundsheet">${G.phase === 'over' ? '查看最終排名' : '查看本局結算'}</button>`;
     return;
   }
-  el.innerHTML = `<div class="status">${G.turn > 0 ? `${esc(G.players[G.turn].name)} 思考中…` : ''}</div>`;
+  el.innerHTML = `<div class="status">${G.turn > 0 ? `${esc(G.players[G.turn].name)} 思考中…` : G.turn === -2 ? '出牌中…' : ''}</div>`;
+}
+function waitingBidders(){
+  return G.players.filter((p, i) => i > 0 && (NET && NET.role === 'client' ? !p.ai && !p.bidDone : p.remote && p.bid === null)).map(p => p.name);
 }
 
 /* ---------- sheets ---------- */
 function openSheet(html){
-  $('#sheet').innerHTML = html;
+  const sh = $('#sheet');
+  delete sh.dataset.kind; delete sh.dataset.lock; delete sh.dataset.card;
+  sh.innerHTML = html;
   $('#overlay').hidden = false;
   $('#sheet').scrollTop = 0;
 }
-function closeSheet(){ $('#overlay').hidden = true; $('#sheet').innerHTML = ''; delete $('#sheet').dataset.card; }
+function closeSheet(){ const sh = $('#sheet'); $('#overlay').hidden = true; sh.innerHTML = ''; delete sh.dataset.card; delete sh.dataset.kind; delete sh.dataset.lock; }
+function lockSheet(kind){ const sh = $('#sheet'); sh.dataset.kind = kind; sh.dataset.lock = '1'; }
+const sheetKind = () => $('#overlay').hidden ? null : $('#sheet').dataset.kind || null;
 
 function openChoice(card){
   const p = G.players[0];
@@ -913,21 +978,27 @@ function openRoundSheet(){
   if (G.phase === 'over') {
     const rank = ps.map((p, i) => ({p, i})).sort((a,b) => b.p.score - a.p.score);
     const me = rank.findIndex(x => x.i === 0) + 1;
+    const client = NET && NET.role === 'client', host = NET && NET.role === 'host';
+    const foot = client ? `<p class="status">等待房主決定要不要再來一場。</p><button type="button" class="btn ghost" data-act="mpleave">離開房間</button>`
+      : host ? `<button type="button" class="btn" data-act="new">再來一場（同一個房間）</button><button type="button" class="btn ghost" data-act="mpleave">解散房間</button>`
+      : `<button type="button" class="btn" data-act="new">再來一場</button>`;
     openSheet(`<h2>${me === 1 ? '你奪下神獸令' : `你名列第 ${me}`}</h2>
-      <p class="sub">十局結束，最終排名如下。</p>
+      <p class="sub">${G.rounds} 局結束，最終排名如下。</p>
       <ol>${rank.map((x, k) => `<li class="${k === 0 ? 'rank1' : ''}">${esc(x.p.name)}：${x.p.score} 分</li>`).join('')}</ol>
       <h3>第 ${r} 局</h3>
       <div class="scroll-x"><table class="score"><tr><th>玩家</th><th>下注</th><th>得墩</th><th>基本</th><th>獎勵</th><th>總分</th></tr>${rows}</table></div>
       ${notes ? `<ul>${notes}</ul>` : ''}
       <h3>全部戰績</h3>${scoreTable()}
-      <div class="row" style="margin-top:12px"><button type="button" class="btn" data-act="new">再來一場</button></div>`);
+      <div class="menu-list" style="margin-top:12px">${foot}</div>`);
+    $('#sheet').dataset.kind = 'round';
     return;
   }
   openSheet(`<h2>第 ${r} 局結算</h2>
     <p class="sub">命中下注才拿得到獎勵分。</p>
     <div class="scroll-x"><table class="score"><tr><th>玩家</th><th>下注</th><th>得墩</th><th>基本</th><th>獎勵</th><th>總分</th></tr>${rows}</table></div>
     ${notes ? `<ul>${notes}</ul>` : ''}
-    <div class="row" style="margin-top:14px"><button type="button" class="btn" data-act="next">開始第 ${r + 1} 局（每人 ${r + 1} 張）</button></div>`);
+    <div class="row" style="margin-top:14px">${NET && NET.role === 'client' ? '<p class="status" style="width:100%">等待房主開始下一局…</p>' : `<button type="button" class="btn" data-act="next">開始第 ${r + 1} 局（每人 ${r + 1} 張）</button>`}</div>`);
+  $('#sheet').dataset.kind = 'round';
 }
 function rulesHTML(){
   const ex = (k) => cardHTML({id:-1, kind:k}, {w:56});
@@ -935,8 +1006,8 @@ function rulesHTML(){
   const suits = SUIT_IDS.map(s => cardHTML({id:-1, kind:'num', suit:s, val:13}, {w:46})).join('');
   return `<button type="button" class="close" data-act="close">關閉</button>
   <h2>神獸令・規則</h2>
-  <p class="sub">預測墩數的吃墩遊戲。共 10 局，猜得準的人拿分。</p>
-  <button type="button" class="btn" data-act="tutorial" style="margin:6px 0 4px">不想看文字？玩互動教學</button>
+  <p class="sub">預測墩數的吃墩遊戲。共 10 局（7 人時 8 局、8 人時 7 局），猜得準的人拿分。</p>
+  ${NET ? '' : '<button type="button" class="btn" data-act="tutorial" style="margin:6px 0 4px">不想看文字？玩互動教學</button>'}
   <h3>牌組（63 張）</h3>
   <p>四象數字牌：青龍、朱雀、白虎、玄武，各 1–13，共 52 張。神獸牌 8 種共 11 張。</p>
   <div class="row" style="gap:6px;flex-wrap:wrap">${suits}</div>
@@ -976,16 +1047,32 @@ function rulesHTML(){
   </ul>
   <button type="button" class="btn ghost" data-act="close" style="margin-top:14px">回到牌桌</button>`;
 }
+function speedSeg(){
+  return [[2,'慢速'],[1.4,'標準'],[0.75,'快速']].map(([v,l]) => `<button type="button" data-speed="${v}" aria-pressed="${settings.speed === v}">${l}</button>`).join('');
+}
 function menuHTML(){
+  if (NET) {
+    const host = NET.role === 'host';
+    return `<button type="button" class="close" data-act="close">關閉</button>
+    <h2>多人連線</h2>
+    <p class="sub">房間 <b>${esc(NET.code)}</b>${G && G.mp ? `・${G.n} 人・${G.rounds} 局` : ''}${host ? '・你是房主' : ''}</p>
+    <div class="menu-list">
+      ${host ? `<div><p class="sub" style="margin-bottom:6px">電腦出牌速度（全房間）</p><div class="seg">${speedSeg()}</div></div>` : ''}
+      <button type="button" class="btn ghost" data-act="mpshare">分享邀請連結</button>
+      <button type="button" class="btn ghost" data-act="log">本場紀錄</button>
+      <button type="button" class="btn ghost" data-act="mpleave">${host ? '解散房間' : '離開房間'}</button>
+    </div>`;
+  }
   const opp = [2,3,4,5].map(v => `<button type="button" data-opp="${v}" aria-pressed="${settings.opp === v}">${v}</button>`).join('');
   const sp = [[2,'慢速'],[1.4,'標準'],[0.75,'快速']].map(([v,l]) => `<button type="button" data-speed="${v}" aria-pressed="${settings.speed === v}">${l}</button>`).join('');
   return `<button type="button" class="close" data-act="close">關閉</button>
   <h2>神獸令</h2>
-  <p class="sub">東方神獸主題的預測吃墩遊戲・單機對電腦</p>
+  <p class="sub">東方神獸主題的預測吃墩遊戲</p>
   <div class="menu-list">
     <div><p class="sub" style="margin-bottom:6px">電腦對手人數（新的一場生效）</p><div class="seg">${opp}</div></div>
     <div><p class="sub" style="margin-bottom:6px">電腦出牌速度</p><div class="seg">${sp}</div></div>
     <button type="button" class="btn" data-act="new">開新的一場</button>
+    <button type="button" class="btn ghost" data-act="mp">多人連線（房間碼）</button>
     <button type="button" class="btn ghost" data-act="tutorial">新手教學（互動關卡）</button>
     <button type="button" class="btn ghost" data-act="log">本場紀錄</button>
   </div>`;
@@ -993,7 +1080,7 @@ function menuHTML(){
 
 /* ---------- input ---------- */
 function tryPlaySelected(){
-  if (!(G.phase === 'play' && G.turn === 0 && humanResolve)) return;
+  if (!canAct()) return;
   const p = G.players[0];
   const c = p.hand.find(x => x.id === selectedId);
   if (!c || !legalCards(p.hand, G.trick).some(x => x.id === c.id)) return;
@@ -1001,7 +1088,14 @@ function tryPlaySelected(){
   if (c.kind === 'hetu' || (c.kind === 'fox' && foxIsFree(G.trick, G.trump))) { openChoice(c); return; }
   commitHuman(c, null);
 }
+function canAct(){ return G && G.phase === 'play' && G.turn === 0 && !!(humanResolve || (G.mp && NET && NET.role === 'client')); }
 function commitHuman(c, choice){
+  if (G.mp && NET && NET.role === 'client') {
+    safeSend(NET.conn, {t:'play', id:c.id, choice});
+    G.players[0].hand = G.players[0].hand.filter(x => x.id !== c.id);
+    G.turn = -2; selectedId = null; render();
+    return;
+  }
   const res = humanResolve; humanResolve = null;
   selectedId = null;
   doPlay(0, c, choice);
@@ -1024,11 +1118,11 @@ document.addEventListener('click', ev => {
     const id = +$('#sheet').dataset.card;
     const c = G.players[0].hand.find(x => x.id === id);
     closeSheet();
-    if (c && humanResolve) commitHuman(c, t.dataset.choose);
+    if (c && canAct()) commitHuman(c, t.dataset.choose);
     return;
   }
   if (t.dataset.opp) { settings.opp = +t.dataset.opp; saveSettings(); openSheet(menuHTML()); return; }
-  if (t.dataset.speed) { settings.speed = +t.dataset.speed; saveSettings(); openSheet(menuHTML()); return; }
+  if (t.dataset.speed) { settings.speed = +t.dataset.speed; saveSettings(); if (sheetKind() === 'lobby') showLobby(); else openSheet(menuHTML()); return; }
   switch (t.dataset.act) {
     case 'play': tryPlaySelected(); break;
     case 'continue': if (tapResolve) tapResolve(); break;
@@ -1044,16 +1138,446 @@ document.addEventListener('click', ev => {
     case 'tutskip': case 'tutplay': markTutDone(); G.token = {}; newGame(); break;
     case 'tutagain': startTutorial(); break;
     case 'roundsheet': openRoundSheet(); break;
+    case 'mp': openSheet(mpEntryHTML()); break;
+    case 'mphost': mpHost(); break;
+    case 'mpjoin': mpJoin(); break;
+    case 'mpstart': mpStart(); break;
+    case 'mpleave': mpLeave(); break;
+    case 'mpdone': closeSheet(); newGame(); break;
+    case 'mpshare': mpShare(t); break;
+    case 'aiplus': if (NET && NET.role === 'host' && !NET.started && NET.members.length + NET.ai < MAX_SEATS) { NET.ai++; lobbyChanged(); } break;
+    case 'aiminus': if (NET && NET.role === 'host' && !NET.started && NET.ai > 0) { NET.ai--; lobbyChanged(); } break;
   }
 });
 document.addEventListener('keydown', ev => {
-  if (ev.key === 'Escape' && !$('#overlay').hidden && G.phase !== 'roundEnd' && G.phase !== 'over') closeSheet();
+  if (ev.key === 'Enter' && ev.target.id === 'mpCode') { ev.preventDefault(); mpJoin(); return; }
+  if (ev.key === 'Escape' && !$('#overlay').hidden && !$('#sheet').dataset.lock && G.phase !== 'roundEnd' && G.phase !== 'over') closeSheet();
   if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.dataset && ev.target.dataset.card) { ev.preventDefault(); ev.target.click(); }
 });
 $('#overlay').addEventListener('click', ev => {
-  if (ev.target.id === 'overlay' && G.phase !== 'roundEnd' && G.phase !== 'over' && !$('#sheet').dataset.card) closeSheet();
+  if (ev.target.id === 'overlay' && G.phase !== 'roundEnd' && G.phase !== 'over' && !$('#sheet').dataset.card && !$('#sheet').dataset.lock) closeSheet();
 });
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (G) { renderHand(); applyTut(); } }, 80); });
+
+/* ---------- multiplayer (PeerJS, host-authoritative) ----------
+   The host's browser runs the whole game (including AI seats). Each remote player
+   receives only their own view, rotated so they sit at seat 0, and sends back bids/plays. */
+let NET = null;
+let remoteResolve = null;
+let mpAttempt = null;
+const NET_V = 1;
+const MAX_SEATS = 8;
+const PEER_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js';
+const ROOM_PREFIX = 'shenshouling-v1-';
+const myPid = (() => {
+  const mk = () => Math.random().toString(36).slice(2, 12);
+  try { let v = sessionStorage.getItem('shenshouling-pid'); if (!v) { v = mk(); sessionStorage.setItem('shenshouling-pid', v); } return v; } catch (e) { return mk(); }
+})();
+
+function loadPeer(){
+  if (window.Peer) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = PEER_SRC; s.async = true;
+    s.onload = () => window.Peer ? res() : rej(new Error('load'));
+    s.onerror = () => rej(new Error('load'));
+    document.head.appendChild(s);
+  });
+}
+function openPeer(id){
+  return new Promise((res, rej) => {
+    const p = id ? new Peer(id, {debug:0}) : new Peer({debug:0});
+    const onErr = e => { p.off('open', onOpen); try { p.destroy(); } catch (x) {} rej(e); };
+    const onOpen = () => { p.off('error', onErr); res(p); };
+    p.once('open', onOpen); p.once('error', onErr);
+  });
+}
+function netErrText(e){
+  const t = e && e.type;
+  if (t === 'peer-unavailable') return '找不到這個房間，請確認房間碼，或請房主重新開房。';
+  if (t === 'browser-incompatible') return '這個瀏覽器不支援連線對戰，請改用 Safari 或 Chrome。';
+  if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return '連不上配對伺服器，請檢查網路後再試。';
+  if (e && e.message === 'load') return '連線元件載入失敗，請檢查網路後再試。';
+  return '連線失敗，請再試一次。';
+}
+const safeSend = (c, m) => { try { if (c && c.open) c.send(m); } catch (e) {} };
+const cleanName = v => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 8);
+function savedName(){ try { return localStorage.getItem('shenshouling-name') || ''; } catch (e) { return ''; } }
+function saveName(v){ try { localStorage.setItem('shenshouling-name', v); } catch (e) {} }
+function genCode(){ const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
+function uniqueName(name, taken){ let n = name, k = 2; while (taken.includes(n)) n = `${name.slice(0, 7)}${k++}`; return n; }
+function setRoomURL(code){ try { history.replaceState(null, '', code ? `${location.pathname}?room=${code}` : location.pathname); } catch (e) {} }
+function inviteURL(){ return `${location.origin}${location.pathname}?room=${NET.code}`; }
+function mpErr(msg){ const el = $('#mpErr'); if (el) el.textContent = msg; }
+
+/* ----- sheets ----- */
+function mpEntryHTML(code = '', err = ''){
+  return `<button type="button" class="close" data-act="close">關閉</button>
+  <h2>多人連線</h2>
+  <p class="sub">每人用自己的手機或電腦。一人開房間，其他人輸入房間碼加入，最多 ${MAX_SEATS} 人，空位可以補電腦。</p>
+  <div class="menu-list">
+    <div class="mp-field"><label for="mpName">你的名字</label><input id="mpName" class="mp-input" maxlength="8" autocomplete="nickname" enterkeyhint="done" value="${esc(savedName())}" placeholder="最多 8 個字"></div>
+    <button type="button" class="btn" data-act="mphost">開新房間</button>
+    <div class="mp-or">或加入朋友的房間</div>
+    <div class="mp-field"><label for="mpCode">房間碼</label><input id="mpCode" class="mp-input mp-code-input" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" value="${esc(code)}" placeholder="5 碼"></div>
+    <button type="button" class="btn ghost" data-act="mpjoin">加入房間</button>
+    <p class="mp-err" id="mpErr" role="alert">${esc(err)}</p>
+    <p class="sub">手機之間是直接連線。少數公司或學校網路會擋，連不上時改用行動網路試試。</p>
+  </div>`;
+}
+function busyHTML(text){
+  return `<h2>多人連線</h2><p class="sub">${esc(text)}</p><div class="spin" aria-hidden="true"></div>
+  <button type="button" class="btn ghost" data-act="mpleave">取消</button>`;
+}
+function endedHTML(why){
+  return `<h2>連線結束</h2><p class="sub">${esc(why)}</p><button type="button" class="btn" data-act="mpdone">回到單機遊戲</button>`;
+}
+function lobbyInfo(){ return {t:'lobby', code:NET.code, members:NET.members.map(m => ({name:m.name, host:!!m.host})), ai:NET.ai}; }
+function lobbyHTML(){
+  const host = NET.role === 'host';
+  const L = host ? lobbyInfo() : (NET.lobby || {code:NET.code, members:[], ai:0});
+  const humans = L.members.length, total = humans + L.ai;
+  const rounds = roundsFor(Math.max(2, total));
+  const list = L.members.map(m => `<li>${esc(m.name)}${m.host ? '<small>房主</small>' : ''}</li>`).join('')
+    + Array.from({length:L.ai}, () => '<li class="ai">電腦<small>補位</small></li>').join('');
+  const aiCtl = host ? `<div class="mp-field"><label>補幾個電腦</label><div class="stepper">
+      <button type="button" data-act="aiminus" ${L.ai <= 0 ? 'disabled' : ''} aria-label="少一個電腦">−</button><b>${L.ai}</b>
+      <button type="button" data-act="aiplus" ${total >= MAX_SEATS ? 'disabled' : ''} aria-label="多一個電腦">＋</button></div></div>
+    <div class="mp-field"><label>電腦出牌速度</label><div class="seg">${speedSeg()}</div></div>` : '';
+  const foot = host
+    ? `<button type="button" class="btn" data-act="mpstart" ${total < 2 ? 'disabled' : ''}>${total < 2 ? '至少 2 人才能開始' : `開始對局（${total} 人・${rounds} 局）`}</button>
+       <button type="button" class="btn ghost" data-act="mpleave">解散房間</button>`
+    : `<p class="status">等待房主開始…（目前 ${total} 人・${rounds} 局）</p>
+       <button type="button" class="btn ghost" data-act="mpleave">離開房間</button>`;
+  return `<h2>${host ? '你的房間' : '已加入房間'}</h2>
+  <p class="sub">${host ? '把房間碼或邀請連結傳給朋友，人到齊再按開始。' : '房主按下開始後，牌局會自動出現。'}</p>
+  <div class="roomcode">${esc(L.code)}</div>
+  <div class="row" style="justify-content:center;margin-bottom:8px"><button type="button" class="btn ghost" data-act="mpshare" style="width:auto;min-height:40px;font-size:14px">分享邀請連結</button></div>
+  <div class="menu-list">
+    <div class="mp-field"><label>玩家（${humans} 人${L.ai ? `＋電腦 ${L.ai}` : ''}，最多 ${MAX_SEATS}）</label><ul class="members">${list}</ul></div>
+    ${aiCtl}${foot}
+  </div>`;
+}
+function showLobby(){ openSheet(lobbyHTML()); lockSheet('lobby'); }
+async function mpShare(btn){
+  if (!NET) return;
+  const url = inviteURL();
+  if (navigator.share) { try { await navigator.share({title:'神獸令', text:`來玩神獸令！房間碼 ${NET.code}`, url}); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(url); btn.textContent = '已複製邀請連結'; }
+  catch (e) { btn.textContent = url; }
+}
+
+/* ----- leaving ----- */
+function mpCleanup(){
+  mpAttempt = null;
+  if (!NET) return;
+  const n = NET; NET = null; remoteResolve = null;
+  clearInterval(n.hb); clearTimeout(n.retryTimer);
+  setTimeout(() => { try { n.peer.destroy(); } catch (e) {} }, 400);
+  setRoomURL(null);
+}
+function mpLeave(){
+  if (!NET) { mpCleanup(); closeSheet(); newGame(); return; }
+  if (NET.role === 'host') for (const c of NET.conns.values()) safeSend(c, {t:'end', why:'房主解散了房間。'});
+  else safeSend(NET.conn, {t:'leave'});
+  mpCleanup();
+  closeSheet();
+  newGame();
+}
+
+/* ----- host ----- */
+async function mpHost(){
+  const name = cleanName($('#mpName') && $('#mpName').value);
+  if (!name) { mpErr('請先輸入名字。'); return; }
+  saveName(name);
+  const att = mpAttempt = {};
+  openSheet(busyHTML('正在開房間…')); lockSheet('busy');
+  try {
+    await loadPeer();
+    let peer = null, code = '';
+    for (let i = 0; i < 4 && !peer; i++) {
+      code = genCode();
+      try { peer = await openPeer(ROOM_PREFIX + code); } catch (e) { if (e.type !== 'unavailable-id') throw e; }
+    }
+    if (!peer) throw {type:'server-error'};
+    if (mpAttempt !== att) { peer.destroy(); return; }
+    if (G) G.token = {};
+    NET = {role:'host', peer, code, members:[{pid:myPid, name, host:true}], conns:new Map(), seen:new Map(), last:new Map(), ai:1, started:false, tick:Date.now()};
+    peer.on('connection', hostOnConn);
+    peer.on('disconnected', () => { try { if (NET && NET.peer === peer) peer.reconnect(); } catch (e) {} });
+    peer.on('error', e => console.warn('peer error', e && e.type));
+    NET.hb = setInterval(hostHeartbeat, 4000);
+    setRoomURL(code);
+    showLobby();
+  } catch (e) {
+    if (mpAttempt !== att) return;
+    mpCleanup();
+    openSheet(mpEntryHTML('', netErrText(e)));
+  }
+}
+function hostOnConn(conn){
+  conn.on('data', m => hostOnMsg(conn, m));
+  conn.on('close', () => hostDrop(conn));
+  conn.on('error', () => hostDrop(conn));
+}
+function pidOf(conn){ if (!NET) return null; for (const [pid, c] of NET.conns) if (c === conn) return pid; return null; }
+function lobbyChanged(){
+  if (!NET || NET.role !== 'host' || NET.started) return;
+  NET.ai = Math.max(0, Math.min(NET.ai, MAX_SEATS - NET.members.length));
+  const info = lobbyInfo();
+  for (const c of NET.conns.values()) safeSend(c, info);
+  if (sheetKind() === 'lobby') showLobby();
+}
+function hostReject(conn, why){ safeSend(conn, {t:'reject', why}); setTimeout(() => { try { conn.close(); } catch (e) {} }, 400); }
+function hostOnMsg(conn, m){
+  if (!NET || NET.role !== 'host' || !m || typeof m !== 'object') return;
+  if (m.t === 'hello') { hostHello(conn, m); return; }
+  const pid = pidOf(conn); if (!pid) return;
+  NET.seen.set(pid, Date.now());
+  if (m.t === 'leave') { hostDrop(conn); return; }
+  if (m.t !== 'bid' && m.t !== 'play') return;
+  if (!NET.started || !G || !G.mp) return;
+  const seat = G.players.findIndex(p => p.pid === pid && p.remote);
+  if (seat < 0) return;
+  const resync = () => { NET.last.delete(pid); hostBroadcast(); };
+  const p = G.players[seat];
+  if (m.t === 'bid') {
+    const b = m.b;
+    if (G.phase !== 'bid' || p.bid !== null || !Number.isInteger(b) || b < 0 || b > G.round) { resync(); return; }
+    p.bid = b; maybeRevealBids();
+    return;
+  }
+  if (!remoteResolve || remoteResolve.seat !== seat || G.phase !== 'play' || G.turn !== seat) { resync(); return; }
+  const c = p.hand.find(x => x.id === m.id);
+  if (!c || !legalCards(p.hand, G.trick).some(x => x.id === c.id)) { resync(); return; }
+  let choice = null;
+  if (c.kind === 'hetu' || (c.kind === 'fox' && foxIsFree(G.trick, G.trump))) {
+    if (!SUIT_IDS.includes(m.choice)) { resync(); return; }
+    choice = m.choice;
+  }
+  const r = remoteResolve; remoteResolve = null;
+  doPlay(seat, c, choice);
+  r.res();
+}
+function hostHello(conn, m){
+  const pid = String(m.pid || '').slice(0, 24);
+  if (!pid) return;
+  if (m.v !== NET_V) { hostReject(conn, '你和房主的遊戲版本不同，請兩邊都重新整理網頁。'); return; }
+  const old = NET.conns.get(pid);
+  if (old && old !== conn) { NET.conns.delete(pid); try { old.close(); } catch (e) {} }
+  if (!NET.started) {
+    let mem = NET.members.find(x => x.pid === pid);
+    if (!mem) {
+      if (NET.members.length >= MAX_SEATS) { hostReject(conn, `房間已滿（最多 ${MAX_SEATS} 人）。`); return; }
+      mem = {pid, name: uniqueName(cleanName(m.name) || '玩家', NET.members.map(x => x.name))};
+      NET.members.push(mem);
+    }
+    NET.conns.set(pid, conn); NET.seen.set(pid, Date.now());
+    lobbyChanged();
+    return;
+  }
+  const seat = G && G.mp ? G.players.findIndex(p => p.pid === pid) : -1;
+  if (seat <= 0) { hostReject(conn, '這個房間的對局已經開始了，等下一場再加入。'); return; }
+  NET.conns.set(pid, conn); NET.seen.set(pid, Date.now()); NET.last.delete(pid);
+  const p = G.players[seat];
+  if (!p.remote) { p.remote = true; p.offline = false; log(`${p.name} 重新連線`); }
+  render();
+}
+function hostDrop(conn){
+  if (!NET || NET.role !== 'host') return;
+  const pid = pidOf(conn); if (!pid) return;
+  NET.conns.delete(pid); NET.last.delete(pid);
+  try { conn.close(); } catch (e) {}
+  if (!NET.started) { NET.members = NET.members.filter(x => x.pid !== pid); lobbyChanged(); return; }
+  if (!G || !G.mp) return;
+  const seat = G.players.findIndex(p => p.pid === pid);
+  if (seat <= 0) return;
+  const p = G.players[seat];
+  if (!p.remote) return;
+  p.remote = false; p.offline = true;
+  log(`${p.name} 離線，由電腦代打`);
+  if (G.phase === 'bid') {
+    if (p.bid === null) p.pendingBid = aiBid(p);
+    maybeRevealBids();
+  }
+  if (remoteResolve && remoteResolve.seat === seat) {
+    const r = remoteResolve; remoteResolve = null;
+    const g = G;
+    setTimeout(() => {
+      if (G !== g || G.turn !== seat || G.phase !== 'play') return;
+      const o = aiChoose(seat); doPlay(seat, o.card, o.choice); r.res();
+    }, 600 * settings.speed);
+  }
+  render();
+}
+function hostHeartbeat(){
+  if (!NET || NET.role !== 'host') return;
+  const now = Date.now();
+  // the page was suspended (phone screen off): don't punish everyone for our own pause
+  if (now - NET.tick > 9000) for (const pid of NET.conns.keys()) NET.seen.set(pid, now);
+  NET.tick = now;
+  for (const [pid, c] of [...NET.conns]) {
+    if (now - (NET.seen.get(pid) || now) > 16000) { hostDrop(c); continue; }
+    safeSend(c, {t:'ping'});
+  }
+}
+function mpStart(){
+  if (!NET || NET.role !== 'host') return;
+  NET.members = NET.members.filter(m => m.host || NET.conns.has(m.pid));
+  const total = NET.members.length + NET.ai;
+  if (total < 2) { if (sheetKind() === 'lobby') showLobby(); return; }
+  const taken = new Set(NET.members.map(m => m.name));
+  const aiNames = shuffle(AI_NAMES.filter(n => !taken.has(n))).slice(0, NET.ai);
+  const me = NET.members.find(m => m.host);
+  const others = shuffle([
+    ...NET.members.filter(m => !m.host).map(m => ({name:m.name, human:false, remote:true, pid:m.pid})),
+    ...aiNames.map(nm => ({name:nm, human:false})),
+  ]);
+  NET.started = true; NET.last.clear();
+  if (G) G.token = {};
+  makeGame([{name:me.name, human:true, pid:me.pid}, ...others], true);
+}
+function viewFor(s){
+  const n = G.n, rot = i => (i - s + n) % n;
+  const players = new Array(n);
+  G.players.forEach((p, i) => {
+    const me = i === s;
+    players[rot(i)] = {
+      name:p.name, human:me, ai:!p.human && !p.remote && !p.offline, offline:!!p.offline,
+      hand: me ? p.hand : new Array(p.hand.length).fill(0),
+      bid: G.phase === 'bid' && !me ? null : p.bid,
+      bidDone: p.bid !== null || p.pendingBid != null,
+      won:p.won, score:p.score, hist:p.hist,
+    };
+  });
+  return {
+    n, rounds:G.rounds, round:G.round, phase:G.phase, players,
+    trump:G.trump, trumpNote:G.trumpNote, leader:rot(G.leader),
+    trick:G.trick.map(e => ({seat:rot(e.seat), card:e.card, eff:e.eff, choice:e.choice})),
+    turn: G.turn < 0 ? -1 : rot(G.turn), tricksDone:G.tricksDone,
+    result: G.result ? Object.assign({}, G.result, {seat:rot(G.result.seat)}) : null,
+    msg:G.msg, log:G.log.slice(-80), lastEnterId,
+  };
+}
+function hostBroadcast(){
+  if (!NET || NET.bq) return;
+  NET.bq = true;
+  setTimeout(() => { if (!NET) return; NET.bq = false; hostSendStates(); }, 0);
+}
+function hostSendStates(){
+  if (!NET || NET.role !== 'host' || !G || !G.mp) return;
+  G.players.forEach((p, seat) => {
+    if (!p.remote) return;
+    const c = NET.conns.get(p.pid); if (!c || !c.open) return;
+    const v = viewFor(seat), str = JSON.stringify(v);
+    if (NET.last.get(p.pid) === str) return;
+    NET.last.set(p.pid, str);
+    safeSend(c, {t:'state', v});
+  });
+}
+
+/* ----- client ----- */
+async function mpJoin(){
+  const name = cleanName($('#mpName') && $('#mpName').value);
+  const code = String(($('#mpCode') && $('#mpCode').value) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!name) { mpErr('請先輸入名字。'); return; }
+  if (code.length !== 5) { mpErr('房間碼是 5 碼英數字。'); return; }
+  saveName(name);
+  const att = mpAttempt = {};
+  openSheet(busyHTML(`正在加入房間 ${code}…`)); lockSheet('busy');
+  try {
+    await loadPeer();
+    const peer = await openPeer(null);
+    if (mpAttempt !== att) { peer.destroy(); return; }
+    if (G) G.token = {};
+    const now = Date.now();
+    NET = {role:'client', peer, code, name, lobby:null, joined:false, started:false, t0:now, lastHost:now, tick:now, tries:0, retryTimer:null};
+    peer.on('error', clientPeerError);
+    peer.on('disconnected', () => { try { if (NET && NET.peer === peer) peer.reconnect(); } catch (e) {} });
+    clientConnect();
+    NET.hb = setInterval(clientHeartbeat, 3000);
+  } catch (e) {
+    if (mpAttempt !== att) return;
+    mpCleanup();
+    openSheet(mpEntryHTML(code, netErrText(e)));
+  }
+}
+function clientConnect(){
+  const conn = NET.peer.connect(ROOM_PREFIX + NET.code, {reliable:true, serialization:'json'});
+  NET.conn = conn;
+  conn.on('open', () => { if (!NET || NET.conn !== conn) return; NET.lastHost = Date.now(); conn.send({t:'hello', pid:myPid, name:NET.name, v:NET_V}); });
+  conn.on('data', m => { if (NET && NET.conn === conn) clientOnMsg(m); });
+  conn.on('close', () => { if (NET && NET.conn === conn) clientLost(); });
+}
+function clientPeerError(e){
+  if (!NET || NET.role !== 'client') return;
+  if (!NET.joined) {
+    const code = NET.code; mpCleanup();
+    openSheet(mpEntryHTML(code, netErrText(e)));
+    return;
+  }
+  if (e && (e.type === 'peer-unavailable' || e.type === 'network')) clientLost();
+}
+function clientLost(){
+  if (!NET || NET.role !== 'client' || NET.retryTimer) return;
+  NET.tries++;
+  if (NET.tries > 8) { mpCleanup(); openSheet(endedHTML('和房主的連線中斷了，房主可能已經離開。')); lockSheet('ended'); return; }
+  openSheet(`<h2>連線中斷</h2><p class="sub">正在重新連線…（第 ${NET.tries} 次）</p><div class="spin" aria-hidden="true"></div>
+    <button type="button" class="btn ghost" data-act="mpleave">離開房間</button>`);
+  lockSheet('reconnect');
+  NET.retryTimer = setTimeout(() => {
+    if (!NET) return;
+    NET.retryTimer = null; NET.lastHost = Date.now();
+    try { if (NET.conn) NET.conn.close(); } catch (e) {}
+    clientConnect();
+  }, 2000);
+}
+function clientHeartbeat(){
+  if (!NET || NET.role !== 'client') return;
+  const now = Date.now();
+  if (now - NET.tick > 9000) NET.lastHost = now;   // we were suspended
+  NET.tick = now;
+  if (!NET.joined) {
+    if (now - NET.t0 > 16000) { const code = NET.code; mpCleanup(); openSheet(mpEntryHTML(code, '連不上房主。可能是網路擋住了直接連線，換成行動網路再試試。')); }
+    return;
+  }
+  safeSend(NET.conn, {t:'pong'});
+  if (now - NET.lastHost > 16000 && !NET.retryTimer) clientLost();
+}
+function clientOnMsg(m){
+  if (!m || typeof m !== 'object') return;
+  NET.lastHost = Date.now();
+  switch (m.t) {
+    case 'ping': safeSend(NET.conn, {t:'pong'}); break;
+    case 'lobby':
+      NET.joined = true; NET.tries = 0; NET.lobby = m; NET.code = m.code; setRoomURL(m.code);
+      if (!NET.started) showLobby();
+      break;
+    case 'state':
+      NET.joined = true; NET.tries = 0; NET.started = true; setRoomURL(NET.code);
+      applyView(m.v);
+      break;
+    case 'reject': { const code = NET.code; mpCleanup(); openSheet(mpEntryHTML(code, m.why || '無法加入這個房間。')); break; }
+    case 'end': mpCleanup(); openSheet(endedHTML(m.why || '房間已關閉。')); lockSheet('ended'); break;
+  }
+}
+function applyView(v){
+  const had = G && G.mp;
+  const prevPhase = had ? G.phase : null, prevTrump = had ? G.trump : undefined, prevRound = had ? G.round : 0;
+  humanResolve = null; tapResolve = null;
+  G = Object.assign(v, {token:{}, mp:true});
+  lastEnterId = v.lastEnterId;
+  if (selectedId !== null && !G.players[0].hand.some(c => c.id === selectedId)) selectedId = null;
+  const kind = sheetKind();
+  const fresh = kind === 'lobby' || kind === 'reconnect' || kind === 'busy';
+  if (fresh) closeSheet();
+  resetTutUI();
+  const atEnd = G.phase === 'roundEnd' || G.phase === 'over';
+  if (atEnd && (prevPhase !== G.phase || fresh)) openRoundSheet();
+  else if (!atEnd && kind === 'round') closeSheet();
+  render();
+  if ((prevTrump !== undefined && prevTrump !== G.trump) || prevRound !== G.round) flashChip();
+}
 
 /* ---------- tutorial ---------- */
 const ABORT = {};
@@ -1325,7 +1849,9 @@ async function runTutorial(tok){
 // expose engine for quick self-checks in the console
 window.__ssl = {resolve, foxEff, baseEff, legalCards};
 
-if (tutSeen()) newGame(); else startTutorial();
+const qRoom = (() => { try { return (new URLSearchParams(location.search).get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); } catch (e) { return ''; } })();
+if (qRoom) { newGame(); openSheet(mpEntryHTML(qRoom)); }
+else if (tutSeen()) newGame(); else startTutorial();
 })();
 </script>
 </body>
