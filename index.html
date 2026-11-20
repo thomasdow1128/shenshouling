@@ -272,6 +272,59 @@ table.score td:first-child,table.score th:first-child{text-align:left;font-famil
 .spin{width:28px;height:28px;margin:14px auto;border-radius:50%;border:3px solid var(--line);border-top-color:var(--gold);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+/* avatars */
+.av{--s:28px;position:relative;display:inline-grid;place-items:center;width:var(--s);height:var(--s);border-radius:50%;overflow:hidden;flex:none;
+  background:radial-gradient(circle at 50% 35%,#2a3358,#141a33);box-shadow:0 0 0 1px rgba(217,168,58,.5)}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.av-fb{font-family:var(--font-display);font-size:calc(var(--s)*.5);line-height:1;color:var(--gold-hi);font-weight:600}
+.opp .av{display:grid;margin:0 auto 3px;--s:32px}
+.opps.many .opp .av{--s:24px;margin-bottom:2px}
+.opp.turn .av{animation:avTurn 1.2s ease-in-out infinite}
+@keyframes avTurn{50%{box-shadow:0 0 0 2px var(--gold-hi),0 0 14px rgba(217,168,58,.65)}}
+.me-row .av{--s:30px}
+.me-row.turn .av{animation:avTurn 1.2s ease-in-out infinite}
+.avpick{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.avpick button{background:none;border:2px solid transparent;border-radius:50%;padding:2px;aspect-ratio:1;display:grid;place-items:center;min-height:44px}
+.avpick button[aria-checked="true"]{border-color:var(--gold);box-shadow:0 0 12px rgba(217,168,58,.45)}
+.avpick .av{--s:100%;width:100%;height:100%}
+.avpick .av-fb{font-size:18px}
+.sheet .members li .av{--s:30px}
+/* card art (enabled by .art on <html> once the images load) */
+.art .card.num .gl{display:none}
+.art .card.num .rk{text-shadow:0 0 3px #fbf6ea,0 0 6px #fbf6ea}
+.art .card.num.s-L{background:url(assets/cards/suit-L.webp) center/cover,var(--paper)}
+.art .card.num.s-Q{background:url(assets/cards/suit-Q.webp) center/cover,var(--paper)}
+.art .card.num.s-H{background:url(assets/cards/suit-H.webp) center/cover,var(--paper)}
+.art .card.num.s-W{background:url(assets/cards/suit-W.webp) center/cover,var(--paper)}
+.art .card.sp-dragon{background:url(assets/cards/sp-dragon.webp) center/cover,#17141f}
+.art .card.sp-qilin{background:url(assets/cards/sp-qilin.webp) center/cover,#17141f}
+.art .card.sp-phoenix{background:url(assets/cards/sp-phoenix.webp) center/cover,#17141f}
+.art .card.sp-fox{background:url(assets/cards/sp-fox.webp) center/cover,#17141f}
+.art .card.sp-taotie{background:url(assets/cards/sp-taotie.webp) center/cover,#17141f}
+.art .card.sp-hundun{background:url(assets/cards/sp-hundun.webp) center/cover,#17141f}
+.art .card.sp-hetu{background:url(assets/cards/sp-hetu.webp) center/cover,#17141f}
+.art .card.sp-rabbit{background:url(assets/cards/sp-rabbit.webp) center/cover,#17141f}
+.art .card.sp .vn{left:calc(var(--w)*.09);transform:none;font-size:calc(var(--w)*.21);text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.9)}
+.art .card.sp .vn.l3{font-size:calc(var(--w)*.18)}
+/* effects */
+.fx{position:absolute;width:130px;height:130px;margin:-65px 0 0 -65px;border-radius:50%;pointer-events:none;z-index:3;animation:fxBurst .9s ease-out forwards;mix-blend-mode:screen}
+.fx-gold{background:radial-gradient(circle,rgba(255,220,120,.95) 0%,rgba(217,168,58,.55) 35%,transparent 70%)}
+.fx-flame{background:radial-gradient(circle,rgba(255,170,90,.95) 0%,rgba(196,57,43,.55) 40%,transparent 70%)}
+.fx-jade{background:radial-gradient(circle,rgba(160,240,200,.9) 0%,rgba(47,125,91,.5) 40%,transparent 70%)}
+.fx-fox{background:radial-gradient(circle,rgba(230,210,255,.9) 0%,rgba(150,110,210,.45) 40%,transparent 70%)}
+.fx-moon{background:radial-gradient(circle,rgba(235,240,255,.85) 0%,rgba(150,170,220,.35) 45%,transparent 70%)}
+.fx-river{background:radial-gradient(circle,transparent 30%,rgba(110,170,230,.75) 42%,transparent 60%);animation-duration:1.1s}
+.fx-chaos{background:conic-gradient(from 0deg,rgba(150,120,200,.0),rgba(150,120,200,.7),rgba(90,80,120,.0),rgba(150,120,200,.6),rgba(150,120,200,0));animation:fxSwirl 1.1s ease-out forwards}
+.fx-bronze{background:radial-gradient(circle,rgba(220,170,100,.85) 0%,rgba(60,110,110,.45) 40%,transparent 70%)}
+@keyframes fxBurst{from{transform:scale(.2);opacity:1}to{transform:scale(2.1);opacity:0}}
+@keyframes fxSwirl{from{transform:scale(.3) rotate(0);opacity:1}to{transform:scale(2) rotate(270deg);opacity:0}}
+.table.chaos{overflow:hidden}
+.table.chaos::after{content:"";position:absolute;inset:-30%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 15%,rgba(150,120,200,.10) 25%,transparent 40% 60%,rgba(150,120,200,.08) 72%,transparent 85%);animation:swirl 9s linear infinite}
+@keyframes swirl{to{transform:rotate(360deg)}}
+.slot.devoured .card{animation:devour .7s cubic-bezier(.5,0,.3,1) both}
+@keyframes devour{from{filter:none;transform:none}55%{transform:scale(.7) rotate(-14deg)}to{filter:grayscale(.85) brightness(.55);transform:scale(.88) rotate(-7deg)}}
+@media (prefers-reduced-motion:reduce){.fx,.table.chaos::after,.opp.turn .av,.me-row.turn .av{animation:none!important}.slot.devoured .card{animation:none}}
 </style>
 </head>
 <body>
@@ -336,6 +389,33 @@ let settings = {opp:3, speed:1.4};
 try { const s = JSON.parse(localStorage.getItem('shenshouling-settings') || 'null'); if (s && typeof s === 'object') settings = Object.assign(settings, s); } catch (e) {}
 if (![2,1.4,0.75].includes(settings.speed)) settings.speed = settings.speed < 1 ? 0.75 : 1.4;
 function saveSettings(){ try { localStorage.setItem('shenshouling-settings', JSON.stringify(settings)); } catch (e) {} }
+
+/* ---------- player profile & avatars ---------- */
+const AVATARS = {
+  kunlun:'崑', penglai:'蓬', qingqiu:'青', yingzhou:'瀛', fangzhang:'方', daiyu:'岱', yuanqiao:'員', fanghu:'壺',
+  scholar:'書', swordswoman:'俠', swordsman:'劍', taoist:'道', foxkid:'狐', panda:'熊',
+};
+const AI_AV = {'崑崙':'kunlun','蓬萊':'penglai','青丘':'qingqiu','瀛洲':'yingzhou','方丈':'fangzhang','岱輿':'daiyu','員嶠':'yuanqiao','方壺':'fanghu'};
+const ME_AVS = ['scholar','swordswoman','swordsman','taoist','foxkid','panda'];
+const avFile = k => ME_AVS.includes(k) ? `assets/av/me-${k}.webp` : `assets/av/av-${k}.webp`;
+const avOf = p => (p && (p.av || AI_AV[p.name])) || 'scholar';
+function profile(){
+  let name = '', av = 'scholar';
+  try { name = localStorage.getItem('shenshouling-name') || ''; const a = localStorage.getItem('shenshouling-avatar'); if (a && ME_AVS.includes(a)) av = a; } catch (e) {}
+  return {name, av};
+}
+function saveProfile(name, av){ try { localStorage.setItem('shenshouling-name', name); localStorage.setItem('shenshouling-avatar', av); } catch (e) {} }
+function avatarHTML(av){
+  const k = AVATARS[av] ? av : 'scholar';
+  return `<span class="av" aria-hidden="true"><span class="av-fb">${AVATARS[k]}</span><img src="${avFile(k)}" alt="" onerror="this.remove()"></span>`;
+}
+function avatarPickHTML(sel){
+  return `<div class="avpick" role="radiogroup" aria-label="選頭像">${ME_AVS.map(k => `<button type="button" role="radio" aria-checked="${k === sel}" data-av="${k}">${avatarHTML(k)}</button>`).join('')}</div>`;
+}
+const pickedAv = () => { const b = document.querySelector('.avpick [aria-checked="true"]'); return b ? b.dataset.av : profile().av; };
+// card art: switch on only once the files actually load, so a missing folder falls back to the drawn cards
+const ART = ['suit-L','suit-Q','suit-H','suit-W','sp-dragon','sp-qilin','sp-phoenix','sp-fox','sp-taotie','sp-hundun','sp-hetu','sp-rabbit'];
+(() => { const im = new Image(); im.onload = () => { document.documentElement.classList.add('art'); ART.forEach(f => { new Image().src = `assets/cards/${f}.webp`; }); }; im.src = 'assets/cards/suit-L.webp'; })();
 
 /* ---------- helpers ---------- */
 let uid = 0;
@@ -432,7 +512,8 @@ let lastEnterId = null;
 function newGame(){
   if (NET) { if (NET.role === 'host') mpStart(); return; }
   const names = shuffle(AI_NAMES.slice()).slice(0, settings.opp);
-  makeGame([{name:'你', human:true}, ...names.map(nm => ({name:nm, human:false}))], false);
+  const pr = profile();
+  makeGame([{name:pr.name || '你', av:pr.av, human:true}, ...names.map(nm => ({name:nm, av:AI_AV[nm], human:false}))], false);
 }
 // players: seat 0 is always the person at this screen. remote:true = a human on another device (host only)
 function makeGame(players, mp){
@@ -446,6 +527,7 @@ function makeGame(players, mp){
   };
   G.players.forEach(p => Object.assign(p, {hand:[], bid:null, pendingBid:null, won:0, captured:[], score:0, hist:[]}));
   selectedId = null; humanResolve = null; tapResolve = null; remoteResolve = null;
+  lastDealKey = null; prevWon = null; animatedIds.clear();
   closeSheet();
   resetTutUI();
   startRound();
@@ -536,6 +618,8 @@ async function playLoop(tok){
     finishTrick();
     render();
     await (G.mp ? sleep(2400) : waitTap(2100));
+    if (G.token !== tok) return;
+    await collectTrick(G.result.seat);
     if (G.token !== tok) return;
   }
   if (G.token !== tok) return;
@@ -716,7 +800,7 @@ function aiChoose(seat){
 /* ---------- rendering ---------- */
 function cardHTML(c, opts = {}){
   const w = opts.w || 64;
-  const extra = (opts.cls || '') + (c.id === lastEnterId && opts.animate ? ' enter' : '');
+  const extra = opts.cls || '';
   const attrs = opts.attrs || '';
   if (c.kind === 'num') {
     const s = SUITS[c.suit];
@@ -734,6 +818,7 @@ function flashChip(){
 
 function render(){
   if (!G) return;
+  snapHand();
   $('.rd').innerHTML = G.tut ? '<b>新手</b>教學' : `第 <b id="rd">${G.round}</b> / ${G.rounds || ROUNDS} 局`;
   // trump chip
   const chip = $('#trumpChip');
@@ -753,6 +838,7 @@ function render(){
   renderHand();
   renderActions();
   applyTut();
+  runAnims();
   if (NET && NET.role === 'host' && G.mp) hostBroadcast();
 }
 function needChip(p){
@@ -773,6 +859,7 @@ function renderOpps(){
     return `<div class="opp${G.turn === seat ? ' turn' : ''}${p.offline ? ' off' : ''}">
       ${G.phase !== 'bid' && G.leader === seat && G.trick.length < G.n && G.phase === 'play' ? '<span class="lead">先</span>' : ''}
       <span class="cnt">${p.offline ? '離線' : p.hand.length + '張'}</span>
+      ${avatarHTML(avOf(p))}
       <div class="nm">${esc(p.name)}</div>
       <div class="st">注 <b>${bidTxt}</b> · 得 <b>${p.won}</b></div>
       <div class="sc">${p.score} 分</div>
@@ -821,7 +908,7 @@ function renderTable(){
     const fy = seat === 0 ? '40px' : '-40px';
     const label = `${esc(p.name)}${live && e && live.winner === idx ? (G.phase === 'trickEnd' ? ' 吃墩' : ' 領先') : ''}`;
     html.push(`<div class="${cls}" style="--fy:${fy}">
-      ${e ? cardHTML(e.card, {w:sw, animate:true, trump:true}) : `<div class="ph"></div>`}
+      ${e ? cardHTML(e.card, {w:sw, trump:true, attrs:`data-cid="${e.card.id}"`}) : `<div class="ph"></div>`}
       <span class="who">${label}</span>${note}
     </div>`);
   }
@@ -840,7 +927,7 @@ function renderMe(){
   const p = G.players[0];
   const row = $('#meRow');
   row.classList.toggle('turn', G.turn === 0);
-  row.innerHTML = `<span class="nm">你</span>
+  row.innerHTML = `${avatarHTML(avOf(p))}<span class="nm">${esc(p.name)}</span>
     <span>下注 <b>${p.bid === null ? '—' : p.bid}</b></span>
     <span>已得 <b>${p.won}</b></span>
     <span>總分 <b>${p.score}</b></span>
@@ -1058,6 +1145,7 @@ function menuHTML(){
     <p class="sub">房間 <b>${esc(NET.code)}</b>${G && G.mp ? `・${G.n} 人・${G.rounds} 局` : ''}${host ? '・你是房主' : ''}</p>
     <div class="menu-list">
       ${host ? `<div><p class="sub" style="margin-bottom:6px">電腦出牌速度（全房間）</p><div class="seg">${speedSeg()}</div></div>` : ''}
+      <button type="button" class="btn ghost" data-act="profile">改名字・換頭像</button>
       <button type="button" class="btn ghost" data-act="mpshare">分享邀請連結</button>
       <button type="button" class="btn ghost" data-act="log">本場紀錄</button>
       <button type="button" class="btn ghost" data-act="mpleave">${host ? '解散房間' : '離開房間'}</button>
@@ -1073,6 +1161,7 @@ function menuHTML(){
     <div><p class="sub" style="margin-bottom:6px">電腦出牌速度</p><div class="seg">${sp}</div></div>
     <button type="button" class="btn" data-act="new">開新的一場</button>
     <button type="button" class="btn ghost" data-act="mp">多人連線（房間碼）</button>
+    <button type="button" class="btn ghost" data-act="profile">改名字・換頭像</button>
     <button type="button" class="btn ghost" data-act="tutorial">新手教學（互動關卡）</button>
     <button type="button" class="btn ghost" data-act="log">本場紀錄</button>
   </div>`;
@@ -1103,7 +1192,7 @@ function commitHuman(c, choice){
 }
 
 document.addEventListener('click', ev => {
-  const t = ev.target.closest('[data-card],[data-bid],[data-act],[data-choose],[data-opp],[data-speed]');
+  const t = ev.target.closest('[data-card],[data-bid],[data-act],[data-choose],[data-opp],[data-speed],[data-av]');
   if (!t) {
     if (G && G.phase === 'trickEnd' && ev.target.closest('#table') && tapResolve) tapResolve();
     return;
@@ -1119,6 +1208,10 @@ document.addEventListener('click', ev => {
     const c = G.players[0].hand.find(x => x.id === id);
     closeSheet();
     if (c && canAct()) commitHuman(c, t.dataset.choose);
+    return;
+  }
+  if (t.dataset.av) {
+    t.closest('.avpick').querySelectorAll('[data-av]').forEach(b => b.setAttribute('aria-checked', String(b === t)));
     return;
   }
   if (t.dataset.opp) { settings.opp = +t.dataset.opp; saveSettings(); openSheet(menuHTML()); return; }
@@ -1139,6 +1232,9 @@ document.addEventListener('click', ev => {
     case 'tutagain': startTutorial(); break;
     case 'roundsheet': openRoundSheet(); break;
     case 'mp': openSheet(mpEntryHTML()); break;
+    case 'profile': openProfile(); break;
+    case 'pfsave': saveProfileFromSheet(); break;
+    case 'pfback': if (profileReturn === 'lobby' && NET) showLobby(); else closeSheet(); break;
     case 'mphost': mpHost(); break;
     case 'mpjoin': mpJoin(); break;
     case 'mpstart': mpStart(); break;
@@ -1217,6 +1313,7 @@ function mpEntryHTML(code = '', err = ''){
   <p class="sub">每人用自己的手機或電腦。一人開房間，其他人輸入房間碼加入，最多 ${MAX_SEATS} 人，空位可以補電腦。</p>
   <div class="menu-list">
     <div class="mp-field"><label for="mpName">你的名字</label><input id="mpName" class="mp-input" maxlength="8" autocomplete="nickname" enterkeyhint="done" value="${esc(savedName())}" placeholder="最多 8 個字"></div>
+    <div class="mp-field"><label>頭像</label>${avatarPickHTML(profile().av)}</div>
     <button type="button" class="btn" data-act="mphost">開新房間</button>
     <div class="mp-or">或加入朋友的房間</div>
     <div class="mp-field"><label for="mpCode">房間碼</label><input id="mpCode" class="mp-input mp-code-input" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" value="${esc(code)}" placeholder="5 碼"></div>
@@ -1232,14 +1329,14 @@ function busyHTML(text){
 function endedHTML(why){
   return `<h2>連線結束</h2><p class="sub">${esc(why)}</p><button type="button" class="btn" data-act="mpdone">回到單機遊戲</button>`;
 }
-function lobbyInfo(){ return {t:'lobby', code:NET.code, members:NET.members.map(m => ({name:m.name, host:!!m.host})), ai:NET.ai}; }
+function lobbyInfo(){ return {t:'lobby', code:NET.code, members:NET.members.map(m => ({name:m.name, av:m.av, host:!!m.host})), ai:NET.ai}; }
 function lobbyHTML(){
   const host = NET.role === 'host';
   const L = host ? lobbyInfo() : (NET.lobby || {code:NET.code, members:[], ai:0});
   const humans = L.members.length, total = humans + L.ai;
   const rounds = roundsFor(Math.max(2, total));
-  const list = L.members.map(m => `<li>${esc(m.name)}${m.host ? '<small>房主</small>' : ''}</li>`).join('')
-    + Array.from({length:L.ai}, () => '<li class="ai">電腦<small>補位</small></li>').join('');
+  const list = L.members.map(m => `<li>${avatarHTML(m.av)}${esc(m.name)}${m.host ? '<small>房主</small>' : ''}</li>`).join('')
+    + Array.from({length:L.ai}, () => '<li class="ai"><span class="av"><span class="av-fb">機</span></span>電腦<small>補位</small></li>').join('');
   const aiCtl = host ? `<div class="mp-field"><label>補幾個電腦</label><div class="stepper">
       <button type="button" data-act="aiminus" ${L.ai <= 0 ? 'disabled' : ''} aria-label="少一個電腦">−</button><b>${L.ai}</b>
       <button type="button" data-act="aiplus" ${total >= MAX_SEATS ? 'disabled' : ''} aria-label="多一個電腦">＋</button></div></div>
@@ -1255,6 +1352,7 @@ function lobbyHTML(){
   <div class="row" style="justify-content:center;margin-bottom:8px"><button type="button" class="btn ghost" data-act="mpshare" style="width:auto;min-height:40px;font-size:14px">分享邀請連結</button></div>
   <div class="menu-list">
     <div class="mp-field"><label>玩家（${humans} 人${L.ai ? `＋電腦 ${L.ai}` : ''}，最多 ${MAX_SEATS}）</label><ul class="members">${list}</ul></div>
+    <button type="button" class="btn ghost" data-act="profile" style="min-height:40px;font-size:14px">改名字・換頭像</button>
     ${aiCtl}${foot}
   </div>`;
 }
@@ -1289,7 +1387,7 @@ function mpLeave(){
 async function mpHost(){
   const name = cleanName($('#mpName') && $('#mpName').value);
   if (!name) { mpErr('請先輸入名字。'); return; }
-  saveName(name);
+  const av = pickedAv(); saveProfile(name, av);
   const att = mpAttempt = {};
   openSheet(busyHTML('正在開房間…')); lockSheet('busy');
   try {
@@ -1302,7 +1400,7 @@ async function mpHost(){
     if (!peer) throw {type:'server-error'};
     if (mpAttempt !== att) { peer.destroy(); return; }
     if (G) G.token = {};
-    NET = {role:'host', peer, code, members:[{pid:myPid, name, host:true}], conns:new Map(), seen:new Map(), last:new Map(), ai:1, started:false, tick:Date.now()};
+    NET = {role:'host', peer, code, members:[{pid:myPid, name, av, host:true}], conns:new Map(), seen:new Map(), last:new Map(), ai:1, started:false, tick:Date.now()};
     peer.on('connection', hostOnConn);
     peer.on('disconnected', () => { try { if (NET && NET.peer === peer) peer.reconnect(); } catch (e) {} });
     peer.on('error', e => console.warn('peer error', e && e.type));
@@ -1335,6 +1433,7 @@ function hostOnMsg(conn, m){
   const pid = pidOf(conn); if (!pid) return;
   NET.seen.set(pid, Date.now());
   if (m.t === 'leave') { hostDrop(conn); return; }
+  if (m.t === 'profile') { hostSetProfile(pid, m.name, m.av); return; }
   if (m.t !== 'bid' && m.t !== 'play') return;
   if (!NET.started || !G || !G.mp) return;
   const seat = G.players.findIndex(p => p.pid === pid && p.remote);
@@ -1369,7 +1468,7 @@ function hostHello(conn, m){
     let mem = NET.members.find(x => x.pid === pid);
     if (!mem) {
       if (NET.members.length >= MAX_SEATS) { hostReject(conn, `房間已滿（最多 ${MAX_SEATS} 人）。`); return; }
-      mem = {pid, name: uniqueName(cleanName(m.name) || '玩家', NET.members.map(x => x.name))};
+      mem = {pid, name: uniqueName(cleanName(m.name) || '玩家', NET.members.map(x => x.name)), av: ME_AVS.includes(m.av) ? m.av : 'scholar'};
       NET.members.push(mem);
     }
     NET.conns.set(pid, conn); NET.seen.set(pid, Date.now());
@@ -1430,12 +1529,12 @@ function mpStart(){
   const aiNames = shuffle(AI_NAMES.filter(n => !taken.has(n))).slice(0, NET.ai);
   const me = NET.members.find(m => m.host);
   const others = shuffle([
-    ...NET.members.filter(m => !m.host).map(m => ({name:m.name, human:false, remote:true, pid:m.pid})),
-    ...aiNames.map(nm => ({name:nm, human:false})),
+    ...NET.members.filter(m => !m.host).map(m => ({name:m.name, av:m.av, human:false, remote:true, pid:m.pid})),
+    ...aiNames.map(nm => ({name:nm, av:AI_AV[nm], human:false})),
   ]);
   NET.started = true; NET.last.clear();
   if (G) G.token = {};
-  makeGame([{name:me.name, human:true, pid:me.pid}, ...others], true);
+  makeGame([{name:me.name, av:me.av, human:true, pid:me.pid}, ...others], true);
 }
 function viewFor(s){
   const n = G.n, rot = i => (i - s + n) % n;
@@ -1443,7 +1542,7 @@ function viewFor(s){
   G.players.forEach((p, i) => {
     const me = i === s;
     players[rot(i)] = {
-      name:p.name, human:me, ai:!p.human && !p.remote && !p.offline, offline:!!p.offline,
+      name:p.name, av:avOf(p), human:me, ai:!p.human && !p.remote && !p.offline, offline:!!p.offline,
       hand: me ? p.hand : new Array(p.hand.length).fill(0),
       bid: G.phase === 'bid' && !me ? null : p.bid,
       bidDone: p.bid !== null || p.pendingBid != null,
@@ -1482,7 +1581,7 @@ async function mpJoin(){
   const code = String(($('#mpCode') && $('#mpCode').value) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!name) { mpErr('請先輸入名字。'); return; }
   if (code.length !== 5) { mpErr('房間碼是 5 碼英數字。'); return; }
-  saveName(name);
+  const av = pickedAv(); saveProfile(name, av);
   const att = mpAttempt = {};
   openSheet(busyHTML(`正在加入房間 ${code}…`)); lockSheet('busy');
   try {
@@ -1491,7 +1590,7 @@ async function mpJoin(){
     if (mpAttempt !== att) { peer.destroy(); return; }
     if (G) G.token = {};
     const now = Date.now();
-    NET = {role:'client', peer, code, name, lobby:null, joined:false, started:false, t0:now, lastHost:now, tick:now, tries:0, retryTimer:null};
+    NET = {role:'client', peer, code, name, av, lobby:null, joined:false, started:false, t0:now, lastHost:now, tick:now, tries:0, retryTimer:null};
     peer.on('error', clientPeerError);
     peer.on('disconnected', () => { try { if (NET && NET.peer === peer) peer.reconnect(); } catch (e) {} });
     clientConnect();
@@ -1505,7 +1604,7 @@ async function mpJoin(){
 function clientConnect(){
   const conn = NET.peer.connect(ROOM_PREFIX + NET.code, {reliable:true, serialization:'json'});
   NET.conn = conn;
-  conn.on('open', () => { if (!NET || NET.conn !== conn) return; NET.lastHost = Date.now(); conn.send({t:'hello', pid:myPid, name:NET.name, v:NET_V}); });
+  conn.on('open', () => { if (!NET || NET.conn !== conn) return; NET.lastHost = Date.now(); conn.send({t:'hello', pid:myPid, name:NET.name, av:NET.av, v:NET_V}); });
   conn.on('data', m => { if (NET && NET.conn === conn) clientOnMsg(m); });
   conn.on('close', () => { if (NET && NET.conn === conn) clientLost(); });
 }
@@ -1561,7 +1660,12 @@ function clientOnMsg(m){
     case 'end': mpCleanup(); openSheet(endedHTML(m.why || '房間已關閉。')); lockSheet('ended'); break;
   }
 }
-function applyView(v){
+let viewChain = Promise.resolve();
+function applyView(v){ viewChain = viewChain.then(() => applyViewNow(v)).catch(e => console.error(e)); }
+async function applyViewNow(v){
+  if (!NET) return;
+  if (G && G.mp && G.phase === 'trickEnd' && G.result && v.phase !== 'trickEnd' && document.querySelector('#slots .card')) await collectTrick(G.result.seat);
+  if (!NET) return;
   const had = G && G.mp;
   const prevPhase = had ? G.phase : null, prevTrump = had ? G.trump : undefined, prevRound = had ? G.round : 0;
   humanResolve = null; tapResolve = null;
@@ -1577,6 +1681,165 @@ function applyView(v){
   else if (!atEnd && kind === 'round') closeSheet();
   render();
   if ((prevTrump !== undefined && prevTrump !== G.trump) || prevRound !== G.round) flashChip();
+}
+
+/* ---------- profile sheet ---------- */
+let profileReturn = null;
+function openProfile(){
+  profileReturn = sheetKind() === 'lobby' ? 'lobby' : null;
+  const pr = profile();
+  const nm = NET ? (NET.role === 'host' ? (NET.members.find(m => m.host) || {}).name : NET.name) || pr.name : pr.name;
+  openSheet(`<button type="button" class="close" data-act="pfback">${profileReturn ? '返回' : '關閉'}</button>
+  <h2>玩家資料</h2>
+  <p class="sub">名字和頭像會顯示在牌桌上，多人連線時其他人也看得到。</p>
+  <div class="menu-list">
+    <div class="mp-field"><label for="pfName">你的名字</label><input id="pfName" class="mp-input" maxlength="8" autocomplete="nickname" enterkeyhint="done" value="${esc(nm || '')}" placeholder="最多 8 個字"></div>
+    <div class="mp-field"><label>頭像</label>${avatarPickHTML(pr.av)}</div>
+    <p class="mp-err" id="pfErr" role="alert"></p>
+    <button type="button" class="btn" data-act="pfsave">儲存</button>
+  </div>`);
+  if (profileReturn) lockSheet('profile');
+}
+function saveProfileFromSheet(){
+  const name = cleanName($('#pfName') && $('#pfName').value);
+  const av = pickedAv();
+  if (!name && NET) { const e = $('#pfErr'); if (e) e.textContent = '多人連線時要有名字。'; return; }
+  saveProfile(name, av);
+  if (NET && NET.role === 'client') { NET.name = name; NET.av = av; safeSend(NET.conn, {t:'profile', name, av}); }
+  else if (NET && NET.role === 'host') hostSetProfile(myPid, name, av);
+  else if (G && !G.tut) { G.players[0].name = name || '你'; G.players[0].av = av; render(); }
+  if (profileReturn === 'lobby' && NET) showLobby(); else closeSheet();
+}
+function hostSetProfile(pid, rawName, rawAv){
+  if (!NET || NET.role !== 'host') return;
+  const name = cleanName(rawName) || '玩家', av = ME_AVS.includes(rawAv) ? rawAv : 'scholar';
+  if (!NET.started) {
+    const mem = NET.members.find(x => x.pid === pid); if (!mem) return;
+    mem.name = uniqueName(name, NET.members.filter(x => x !== mem).map(x => x.name)); mem.av = av;
+    lobbyChanged();
+    return;
+  }
+  if (!G || !G.mp) return;
+  const p = G.players.find(x => x.pid === pid); if (!p) return;
+  const old = p.name;
+  p.name = uniqueName(name, G.players.filter(x => x !== p).map(x => x.name)); p.av = av;
+  const mem = NET.members.find(x => x.pid === pid); if (mem) { mem.name = p.name; mem.av = av; }
+  if (old !== p.name) log(`${old} 改名為 ${p.name}`);
+  render();
+}
+
+/* ---------- animation ----------
+   The table is re-rendered with innerHTML, so running animations are recorded and
+   re-attached (at the same progress) to the fresh elements after every render. */
+const reduceMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let handRects = new Map();
+const animatedIds = new Set();
+let lastDealKey = null, prevWon = null, prevPhaseA = null, prevRoundA = null;
+let liveAnims = [];
+function snapHand(){
+  handRects = new Map();
+  document.querySelectorAll('#hand .card[data-card]').forEach(n => handRects.set(+n.dataset.card, n.getBoundingClientRect()));
+}
+function addAnim(sel, kf, opts){
+  if (reduceMotion()) return;
+  const a = {sel, kf, opts, start: performance.now()};
+  liveAnims.push(a);
+  attachAnim(a);
+}
+function attachAnim(a){
+  const el = document.querySelector(a.sel); if (!el) return;
+  const an = el.animate(a.kf, Object.assign({fill:'backwards'}, a.opts));
+  an.currentTime = performance.now() - a.start;
+}
+function reattachAnims(){
+  const now = performance.now();
+  liveAnims = liveAnims.filter(a => now - a.start < (a.opts.duration || 0) + (a.opts.delay || 0));
+  liveAnims.forEach(attachAnim);
+}
+const center = r => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
+function seatRect(seat){
+  if (seat === 0) { const m = $('#meRow'); return m ? m.getBoundingClientRect() : null; }
+  const o = document.querySelectorAll('#opps .opp')[seat - 1];
+  return o ? o.getBoundingClientRect() : null;
+}
+function fx(kind, rect){
+  if (reduceMotion() || !rect) return;
+  const tb = $('#table'), tr = tb.getBoundingClientRect(), c = center(rect);
+  const d = document.createElement('div');
+  d.className = `fx fx-${kind}`;
+  d.style.left = (c.x - tr.left) + 'px'; d.style.top = (c.y - tr.top) + 'px';
+  d.addEventListener('animationend', () => d.remove());
+  setTimeout(() => d.remove(), 2000);
+  tb.appendChild(d);
+}
+const FX_OF = {dragon:'gold', phoenix:'flame', qilin:'jade', fox:'fox', rabbit:'moon', hetu:'river', hundun:'chaos', taotie:'bronze'};
+function runAnims(){
+  reattachAnims();
+  if (G.tut) { prevPhaseA = G.phase; return; }
+  // 1. deal: the round's hand flies in from the centre of the table
+  const dealKey = `${G.n}:${G.round}`;
+  if (G.phase === 'bid' && dealKey !== lastDealKey) {
+    lastDealKey = dealKey;
+    const tc = center($('#table').getBoundingClientRect());
+    document.querySelectorAll('#hand .card[data-card]').forEach((n, i, all) => {
+      const c = center(n.getBoundingClientRect());
+      const rot = (i - (all.length - 1) / 2) * 6;
+      addAnim(`#hand .card[data-card="${n.dataset.card}"]`,
+        [{transform:`translate(${tc.x - c.x}px,${tc.y - c.y}px) scale(.45) rotate(${rot}deg)`, opacity:0}, {transform:'none', opacity:1}],
+        {duration:420, delay:i * 75, easing:'cubic-bezier(.2,.8,.3,1)'});
+    });
+  }
+  // 2. a card just played flies from its owner to the table
+  if (lastEnterId != null && !animatedIds.has(lastEnterId)) {
+    const e = G.trick.find(x => x.card.id === lastEnterId);
+    const el = document.querySelector(`#slots [data-cid="${lastEnterId}"]`);
+    if (e && el) {
+      animatedIds.add(lastEnterId);
+      const tgt = el.getBoundingClientRect(), tc = center(tgt);
+      const src = e.seat === 0 ? (handRects.get(e.card.id) || ($('#hand') && $('#hand').getBoundingClientRect())) : seatRect(e.seat);
+      if (src) {
+        const sc = center(src);
+        const s = e.seat === 0 ? Math.max(.6, Math.min(1.4, src.width / tgt.width)) : .4;
+        addAnim(`#slots [data-cid="${lastEnterId}"]`,
+          [{transform:`translate(${sc.x - tc.x}px,${sc.y - tc.y}px) scale(${s}) rotate(${e.seat === 0 ? 0 : -10}deg)`, opacity:e.seat === 0 ? 1 : .2},
+           {transform:'translateY(-6px) scale(1.06)', opacity:1, offset:.75}, {transform:'none', opacity:1}],
+          {duration:460, easing:'cubic-bezier(.2,.8,.3,1)'});
+      }
+      const k = FX_OF[e.card.kind];
+      if (k) setTimeout(() => fx(k, tgt), 320);
+      if (e.card.kind === 'dragon') addAnim('#table', [{transform:'none'},{transform:'translate(-3px,1px)'},{transform:'translate(3px,-1px)'},{transform:'translate(-2px,0)'},{transform:'none'}], {duration:360, delay:300});
+    }
+  }
+  if (G.trick.length === 0) animatedIds.clear();
+  // 3. bids revealed: every opponent's bid pops in turn
+  if (prevPhaseA === 'bid' && G.phase === 'play' && prevRoundA === G.round) {
+    document.querySelectorAll('#opps .opp').forEach((o, i) => addAnim(`#opps .opp:nth-child(${i + 1}) .st b`,
+      [{transform:'scale(1)'}, {transform:'scale(1.8)', color:'#f2d68e'}, {transform:'scale(1)'}], {duration:520, delay:i * 90}));
+  }
+  // 4. someone took a trick: their tile glows
+  const won = G.players.map(p => p.won);
+  if (prevWon && prevRoundA === G.round) won.forEach((w, i) => {
+    if (w > (prevWon[i] || 0)) addAnim(i === 0 ? '#meRow' : `#opps .opp:nth-child(${i})`,
+      [{boxShadow:'0 0 0 0 rgba(217,168,58,0)'}, {boxShadow:'0 0 0 3px rgba(242,214,142,.9), 0 0 26px rgba(217,168,58,.7)', transform:'scale(1.05)'}, {boxShadow:'0 0 0 0 rgba(217,168,58,0)', transform:'none'}],
+      {duration:900, easing:'ease-out'});
+  });
+  prevWon = won; prevPhaseA = G.phase; prevRoundA = G.round;
+}
+// the finished trick sweeps over to whoever won it
+function collectTrick(seat){
+  const cards = [...document.querySelectorAll('#slots .card')];
+  const r = seatRect(seat);
+  if (!cards.length || !r || reduceMotion()) return Promise.resolve();
+  const t = center(r);
+  liveAnims = [];
+  return new Promise(res => {
+    cards.forEach((n, i) => {
+      const c = center(n.getBoundingClientRect());
+      n.animate([{transform:'none', opacity:1}, {transform:`translate(${t.x - c.x}px,${t.y - c.y}px) scale(.25) rotate(${(i % 2 ? 1 : -1) * 14}deg)`, opacity:0}],
+        {duration:440, delay:i * 30, easing:'cubic-bezier(.5,0,.75,0)', fill:'forwards'});
+    });
+    setTimeout(res, 440 + cards.length * 30);
+  });
 }
 
 /* ---------- tutorial ---------- */
